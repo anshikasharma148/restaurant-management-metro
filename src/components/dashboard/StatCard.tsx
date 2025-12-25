@@ -11,20 +11,22 @@ interface StatCardProps {
     isPositive: boolean
   }
   className?: string
+  delay?: number
 }
 
-export function StatCard({ title, value, subtitle, icon: Icon, trend, className }: StatCardProps) {
+export function StatCard({ title, value, subtitle, icon: Icon, trend, className, delay = 0 }: StatCardProps) {
   return (
     <div
       className={cn(
-        "rounded-lg bg-card border border-border p-6 transition-all hover:border-primary/30 animate-fade-in",
+        "rounded-xl bg-card border border-border p-6 transition-all duration-300 hover-lift interactive-card animate-slide-up opacity-0 [animation-fill-mode:forwards]",
         className
       )}
+      style={{ animationDelay: `${delay}ms` }}
     >
       <div className="flex items-center justify-between mb-4">
         <span className="text-sm font-medium text-muted-foreground">{title}</span>
-        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-          <Icon className="w-5 h-5 text-primary" />
+        <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center transition-transform duration-300 hover:scale-110">
+          <Icon className="w-6 h-6 text-primary" />
         </div>
       </div>
 
@@ -36,11 +38,17 @@ export function StatCard({ title, value, subtitle, icon: Icon, trend, className 
         {trend && (
           <p
             className={cn(
-              "text-sm font-medium",
+              "text-sm font-medium flex items-center gap-1",
               trend.isPositive ? "text-status-ready" : "text-destructive"
             )}
           >
-            {trend.isPositive ? "↑" : "↓"} {Math.abs(trend.value)}% vs last period
+            <span className={cn(
+              "inline-flex items-center justify-center w-5 h-5 rounded-full text-xs",
+              trend.isPositive ? "bg-status-ready/20" : "bg-destructive/20"
+            )}>
+              {trend.isPositive ? "↑" : "↓"}
+            </span>
+            {Math.abs(trend.value)}% vs last period
           </p>
         )}
       </div>

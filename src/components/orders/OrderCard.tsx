@@ -30,29 +30,31 @@ export function OrderCard({ order, onStatusChange, showActions = true, className
   return (
     <div
       className={cn(
-        "rounded-lg bg-card border border-border p-4 transition-all hover:border-primary/50",
+        "rounded-xl bg-card border border-border p-5 transition-all duration-300 hover-lift interactive-card",
         isOverdue && "border-destructive/50 bg-destructive/5",
         className
       )}
     >
       {/* Header */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <span className="text-lg font-bold text-primary">#{order.orderNumber}</span>
+          <span className="text-xl font-bold text-primary">#{order.orderNumber}</span>
           <StatusBadge status={displayStatus} />
         </div>
         <div className="flex items-center gap-2 text-muted-foreground text-sm">
-          {isOverdue && <AlertTriangle className="w-4 h-4 text-destructive" />}
+          {isOverdue && <AlertTriangle className="w-4 h-4 text-destructive animate-pulse" />}
           <Clock className="w-4 h-4" />
           <span>{formatDistanceToNow(new Date(order.createdAt), { addSuffix: true })}</span>
         </div>
       </div>
 
       {/* Order type and table */}
-      <div className="flex items-center gap-2 mb-3 text-sm">
+      <div className="flex items-center gap-2 mb-4 text-sm">
         <span className={cn(
-          "px-2 py-0.5 rounded text-xs font-medium uppercase",
-          order.type === "dine-in" ? "bg-primary/20 text-primary" : "bg-secondary text-secondary-foreground"
+          "px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wide",
+          order.type === "dine-in" 
+            ? "bg-primary/15 text-primary border border-primary/20" 
+            : "bg-secondary text-secondary-foreground"
         )}>
           {order.type}
         </span>
@@ -64,14 +66,19 @@ export function OrderCard({ order, onStatusChange, showActions = true, className
       {/* Items */}
       <div className="space-y-2 mb-4">
         {order.items.map((item, index) => (
-          <div key={index} className="flex justify-between items-center text-sm">
-            <div className="flex items-center gap-2">
-              <span className="w-6 h-6 rounded bg-muted flex items-center justify-center text-xs font-semibold">
+          <div 
+            key={index} 
+            className="flex justify-between items-center text-sm py-1 border-b border-border/50 last:border-0"
+          >
+            <div className="flex items-center gap-3">
+              <span className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
                 {item.quantity}
               </span>
-              <span>{item.name}</span>
+              <span className="font-medium">{item.name}</span>
               {item.variant && (
-                <span className="text-muted-foreground">({item.variant})</span>
+                <span className="text-muted-foreground text-xs px-2 py-0.5 bg-muted rounded">
+                  {item.variant}
+                </span>
               )}
             </div>
           </div>
@@ -80,8 +87,8 @@ export function OrderCard({ order, onStatusChange, showActions = true, className
 
       {/* Notes */}
       {order.notes && (
-        <div className="text-sm text-muted-foreground bg-muted/50 rounded p-2 mb-4">
-          <span className="font-medium">Note:</span> {order.notes}
+        <div className="text-sm text-muted-foreground bg-muted/50 rounded-lg p-3 mb-4 border border-border/50">
+          <span className="font-semibold text-foreground">Note:</span> {order.notes}
         </div>
       )}
 
@@ -89,7 +96,7 @@ export function OrderCard({ order, onStatusChange, showActions = true, className
       {showActions && nextStatus[order.status] && (
         <div className="flex gap-2">
           <Button
-            className="flex-1"
+            className="flex-1 hover:shadow-glow transition-all duration-300"
             onClick={() => onStatusChange?.(order.id, nextStatus[order.status]!)}
           >
             Mark as {nextStatus[order.status]}
