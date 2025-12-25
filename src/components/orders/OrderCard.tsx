@@ -97,7 +97,7 @@ export function OrderCard({ order, onStatusChange, showActions = true, className
         <div className="flex gap-2">
           <Button
             className="flex-1 hover:shadow-glow transition-all duration-300"
-            onClick={() => onStatusChange?.(order.id, nextStatus[order.status]!)}
+            onClick={() => onStatusChange?.((order as any)._id || order.id, nextStatus[order.status]!)}
           >
             Mark as {nextStatus[order.status]}
           </Button>

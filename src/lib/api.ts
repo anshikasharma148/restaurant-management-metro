@@ -76,8 +76,42 @@ export const menuAPI = {
   getItem: async (id: string) => {
     return apiRequest(`/menu/items/${id}`);
   },
+  createItem: async (itemData: any) => {
+    return apiRequest('/menu/items', {
+      method: 'POST',
+      body: JSON.stringify(itemData),
+    });
+  },
+  updateItem: async (id: string, itemData: any) => {
+    return apiRequest(`/menu/items/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(itemData),
+    });
+  },
+  deleteItem: async (id: string) => {
+    return apiRequest(`/menu/items/${id}`, {
+      method: 'DELETE',
+    });
+  },
   getCategories: async () => {
     return apiRequest('/menu/categories');
+  },
+  createCategory: async (categoryData: any) => {
+    return apiRequest('/menu/categories', {
+      method: 'POST',
+      body: JSON.stringify(categoryData),
+    });
+  },
+  updateCategory: async (id: string, categoryData: any) => {
+    return apiRequest(`/menu/categories/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(categoryData),
+    });
+  },
+  deleteCategory: async (id: string) => {
+    return apiRequest(`/menu/categories/${id}`, {
+      method: 'DELETE',
+    });
   },
 };
 

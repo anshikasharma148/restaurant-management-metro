@@ -61,7 +61,7 @@ export function MenuItem({ item, onAdd, className }: MenuItemProps) {
                   {variant.name}
                   {variant.priceModifier !== 0 && (
                     <span className="ml-1 opacity-75">
-                      {variant.priceModifier > 0 ? "+" : ""}${variant.priceModifier.toFixed(2)}
+                      {variant.priceModifier > 0 ? "+" : ""}₹{variant.priceModifier.toFixed(2)}
                     </span>
                   )}
                 </button>
@@ -71,7 +71,7 @@ export function MenuItem({ item, onAdd, className }: MenuItemProps) {
 
           {/* Price and quantity */}
           <div className="flex items-center justify-between gap-2 mt-3">
-            <span className="text-xl font-bold text-primary">${totalPrice.toFixed(2)}</span>
+            <span className="text-xl font-bold text-primary">₹{totalPrice.toFixed(2)}</span>
             
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1 bg-muted rounded-xl p-1">

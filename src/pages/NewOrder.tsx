@@ -24,29 +24,30 @@ export default function NewOrderPage() {
   const [tables, setTables] = useState<Table[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true)
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true)
         const [itemsData, categoriesData, tablesData] = await Promise.all([
           menuAPI.getItems({ available: true }),
           menuAPI.getCategories(),
-          tablesAPI.getTables(),
+          tablesAPI.getTables({ status: "available" }),
         ])
-        setMenuItems(itemsData)
-        setCategories(categoriesData)
-        setTables(tablesData)
-        if (categoriesData.length > 0) {
-          setSelectedCategory(categoriesData[0]._id || categoriesData[0].id)
-        }
-      } catch (error: any) {
-        toast.error(error.message || "Failed to load data")
-      } finally {
-        setLoading(false)
+      setMenuItems(itemsData)
+      setCategories(categoriesData)
+      setTables(tablesData)
+      if (categoriesData.length > 0) {
+        setSelectedCategory(categoriesData[0]._id || categoriesData[0].id)
       }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to load data")
+    } finally {
+      setLoading(false)
     }
-    fetchData()
   }, [])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
 
   const filteredItems = useMemo(() => {
     let items = menuItems.filter((item) => item.available)
@@ -71,10 +72,11 @@ export default function NewOrderPage() {
   const handleAddItem = useCallback((item: MenuItemType, quantity: number, variant?: string) => {
     const variantPrice = item.variants?.find((v) => v.name === variant)?.priceModifier || 0
     const price = item.price + variantPrice
+    const itemId = (item as any)._id || item.id
 
     setCart((prev) => {
       const existingIndex = prev.findIndex(
-        (cartItem) => cartItem.menuItemId === item.id && cartItem.variant === variant
+        (cartItem) => cartItem.menuItemId === itemId && cartItem.variant === variant
       )
 
       if (existingIndex >= 0) {
@@ -86,7 +88,7 @@ export default function NewOrderPage() {
       return [
         ...prev,
         {
-          menuItemId: item.id,
+          menuItemId: itemId,
           name: item.name,
           quantity,
           price,
@@ -144,6 +146,16 @@ export default function NewOrderPage() {
       toast.success("Order placed successfully!")
       setCart([])
       setSelectedTable(null)
+      // Refresh tables to get updated status
+      if (orderType === "dine-in") {
+        try {
+          const tablesData = await tablesAPI.getTables({ status: "available" })
+          setTables(tablesData)
+        } catch (error) {
+          // Silently refresh tables, don't show error
+          console.error("Failed to refresh tables:", error)
+        }
+      }
       navigate("/kitchen")
     } catch (error: any) {
       toast.error(error.message || "Failed to create order")

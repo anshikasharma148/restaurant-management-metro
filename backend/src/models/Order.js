@@ -89,7 +89,7 @@ const orderSchema = new mongoose.Schema(
 
 // Index for faster queries
 orderSchema.index({ status: 1, createdAt: -1 });
-orderSchema.index({ orderNumber: 1 });
+// Note: orderNumber already has an index from unique: true, so we don't need to add it again
 
 const Order = mongoose.model('Order', orderSchema);
 

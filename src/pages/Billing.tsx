@@ -6,6 +6,7 @@ import { Kbd } from "@/components/ui/kbd"
 import { ordersAPI, paymentsAPI, settingsAPI } from "@/lib/api"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { Link } from "react-router-dom"
 import {
   CreditCard,
   Banknote,
@@ -14,6 +15,8 @@ import {
   Printer,
   X,
   Check,
+  ChefHat,
+  AlertCircle,
 } from "lucide-react"
 import type { PaymentMethod } from "@/lib/types"
 
@@ -27,32 +30,50 @@ const paymentMethods: { value: PaymentMethod; label: string; icon: typeof Credit
 export default function BillingPage() {
   const [selectedOrder, setSelectedOrder] = useState<any>(null)
   const [readyOrders, setReadyOrders] = useState<any[]>([])
+  const [pendingOrders, setPendingOrders] = useState<any[]>([])
+  const [preparingOrders, setPreparingOrders] = useState<any[]>([])
   const [selectedPayment, setSelectedPayment] = useState<PaymentMethod>("cash")
   const [discount, setDiscount] = useState("")
   const [amountReceived, setAmountReceived] = useState("")
   const [taxRate, setTaxRate] = useState(10)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true)
-        const [orders, settings] = await Promise.all([
-          ordersAPI.getOrders({ status: "ready" }),
-          settingsAPI.getSettings(),
-        ])
-        setReadyOrders(orders)
-        if (orders.length > 0 && !selectedOrder) {
-          setSelectedOrder(orders[0])
-        }
-        setTaxRate(settings.taxRate || 10)
-      } catch (error: any) {
-        toast.error(error.message || "Failed to load data")
-      } finally {
-        setLoading(false)
+  const fetchData = async () => {
+    try {
+      setLoading(true)
+      const [readyOrdersData, pendingOrdersData, preparingOrdersData, settings] = await Promise.all([
+        ordersAPI.getOrders({ status: "ready" }),
+        ordersAPI.getOrders({ status: "pending" }),
+        ordersAPI.getOrders({ status: "preparing" }),
+        settingsAPI.getSettings(),
+      ])
+      setReadyOrders(readyOrdersData)
+      setPendingOrders(pendingOrdersData)
+      setPreparingOrders(preparingOrdersData)
+      
+      // Auto-select first ready order, or first pending/preparing if no ready orders
+      if (readyOrdersData.length > 0 && !selectedOrder) {
+        setSelectedOrder(readyOrdersData[0])
+      } else if (readyOrdersData.length === 0 && (pendingOrdersData.length > 0 || preparingOrdersData.length > 0) && !selectedOrder) {
+        // Show pending/preparing orders for billing (with warning)
+        const firstOrder = pendingOrdersData[0] || preparingOrdersData[0]
+        setSelectedOrder(firstOrder)
+      } else if (readyOrdersData.length === 0 && pendingOrdersData.length === 0 && preparingOrdersData.length === 0) {
+        setSelectedOrder(null)
       }
+      setTaxRate(settings.taxRate || 10)
+    } catch (error: any) {
+      toast.error(error.message || "Failed to load data")
+    } finally {
+      setLoading(false)
     }
+  }
+
+  useEffect(() => {
     fetchData()
+    // Auto-refresh every 5 seconds to catch new ready orders
+    const interval = setInterval(fetchData, 5000)
+    return () => clearInterval(interval)
   }, [])
 
   const discountPercent = parseFloat(discount) || 0
@@ -100,40 +121,112 @@ export default function BillingPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
           {/* Order Selection */}
           <div className="space-y-3">
-            <h2 className="font-semibold">Ready for Payment</h2>
+            <h2 className="font-semibold">Orders for Payment</h2>
             {loading ? (
               <div className="text-center py-8 text-muted-foreground">
                 <p className="text-sm">Loading...</p>
               </div>
-            ) : readyOrders.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground border border-dashed border-border rounded-lg">
-                <p className="text-sm">No orders ready</p>
+            ) : readyOrders.length === 0 && pendingOrders.length === 0 && preparingOrders.length === 0 ? (
+              <div className="text-center py-6 text-muted-foreground border border-dashed border-border rounded-lg">
+                <AlertCircle className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
+                <p className="text-sm font-medium mb-1">No orders available</p>
+                <p className="text-xs text-muted-foreground">
+                  Create a new order to start billing
+                </p>
               </div>
             ) : (
               <div className="space-y-2">
-                {readyOrders.map((order) => {
-                  const orderId = order._id || order.id
-                  return (
-                    <button
-                      key={orderId}
-                      onClick={() => setSelectedOrder(order)}
-                      className={cn(
-                        "w-full p-3 rounded-lg border text-left transition-colors",
-                        (selectedOrder?._id === orderId || selectedOrder?.id === orderId)
-                          ? "border-primary bg-primary/10"
-                          : "border-border bg-card hover:border-primary/50"
-                      )}
-                    >
-                      <div className="flex justify-between items-center">
-                        <span className="font-bold text-primary">#{order.orderNumber}</span>
-                        <span className="font-semibold">${order.total.toFixed(2)}</span>
-                      </div>
-                      <div className="text-sm text-muted-foreground mt-1">
-                        {order.type === "dine-in" ? `Table ${order.tableNumber}` : "Takeaway"} • {order.items.length} items
-                      </div>
-                    </button>
-                  )
-                })}
+                {/* Ready Orders */}
+                {readyOrders.length > 0 && (
+                  <>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Ready ({readyOrders.length})</p>
+                    {readyOrders.map((order) => {
+                      const orderId = order._id || order.id
+                      return (
+                        <button
+                          key={orderId}
+                          onClick={() => setSelectedOrder(order)}
+                          className={cn(
+                            "w-full p-3 rounded-lg border text-left transition-colors",
+                            (selectedOrder?._id === orderId || selectedOrder?.id === orderId)
+                              ? "border-primary bg-primary/10"
+                              : "border-border bg-card hover:border-primary/50"
+                          )}
+                        >
+                          <div className="flex justify-between items-center">
+                            <span className="font-bold text-primary">#{order.orderNumber}</span>
+                            <span className="font-semibold">₹{order.total.toFixed(2)}</span>
+                          </div>
+                          <div className="text-sm text-muted-foreground mt-1">
+                            {order.type === "dine-in" ? `Table ${order.tableNumber}` : "Takeaway"} • {order.items.length} items
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </>
+                )}
+                
+                {/* Pending/Preparing Orders (with warning) */}
+                {(pendingOrders.length > 0 || preparingOrders.length > 0) && (
+                  <>
+                    {(readyOrders.length > 0) && <div className="my-2 border-t border-border" />}
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Not Ready Yet ({(pendingOrders.length + preparingOrders.length)})
+                    </p>
+                    {pendingOrders.map((order) => {
+                      const orderId = order._id || order.id
+                      return (
+                        <button
+                          key={orderId}
+                          onClick={() => setSelectedOrder(order)}
+                          className={cn(
+                            "w-full p-3 rounded-lg border text-left transition-colors",
+                            (selectedOrder?._id === orderId || selectedOrder?.id === orderId)
+                              ? "border-yellow-500/50 bg-yellow-500/10"
+                              : "border-yellow-500/30 bg-yellow-500/5 hover:border-yellow-500/50"
+                          )}
+                        >
+                          <div className="flex justify-between items-center">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-primary">#{order.orderNumber}</span>
+                              <span className="text-xs px-2 py-0.5 bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 rounded">Pending</span>
+                            </div>
+                            <span className="font-semibold">₹{order.total.toFixed(2)}</span>
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {order.type === "dine-in" ? `Table ${order.tableNumber}` : "Takeaway"} • {order.items.length} items
+                          </div>
+                        </button>
+                      )
+                    })}
+                    {preparingOrders.map((order) => {
+                      const orderId = order._id || order.id
+                      return (
+                        <button
+                          key={orderId}
+                          onClick={() => setSelectedOrder(order)}
+                          className={cn(
+                            "w-full p-3 rounded-lg border text-left transition-colors",
+                            (selectedOrder?._id === orderId || selectedOrder?.id === orderId)
+                              ? "border-yellow-500/50 bg-yellow-500/10"
+                              : "border-yellow-500/30 bg-yellow-500/5 hover:border-yellow-500/50"
+                          )}
+                        >
+                          <div className="flex justify-between items-center">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-primary">#{order.orderNumber}</span>
+                              <span className="text-xs px-2 py-0.5 bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 rounded">Preparing</span>
+                            </div>
+                            <span className="font-semibold">₹{order.total.toFixed(2)}</span>
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {order.type === "dine-in" ? `Table ${order.tableNumber}` : "Takeaway"} • {order.items.length} items
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -144,8 +237,27 @@ export default function BillingPage() {
               <>
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="font-semibold">Bill Preview</h2>
-                  <span className="text-xl font-bold text-primary">#{selectedOrder?.orderNumber}</span>
+                  <div className="flex items-center gap-2">
+                    {selectedOrder.status !== "ready" && (
+                      <div className="text-xs px-2 py-1 bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 rounded border border-yellow-500/30">
+                        {selectedOrder.status === "pending" ? "Pending" : "Preparing"}
+                      </div>
+                    )}
+                    <span className="text-xl font-bold text-primary">#{selectedOrder?.orderNumber}</span>
+                  </div>
                 </div>
+                
+                {selectedOrder.status !== "ready" && (
+                  <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 text-yellow-600 dark:text-yellow-400 mt-0.5 shrink-0" />
+                      <div className="text-xs text-yellow-700 dark:text-yellow-300">
+                        <p className="font-medium mb-1">Order is not ready yet</p>
+                        <p>This order is still {selectedOrder.status}. You can process payment, but it's recommended to mark it as "ready" in the Kitchen page first.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
             {/* Items */}
             <div className="space-y-2 mb-4">
@@ -158,7 +270,7 @@ export default function BillingPage() {
                     )}
                     <span className="text-muted-foreground ml-2">x{item.quantity}</span>
                   </div>
-                  <span>${(item.price * item.quantity).toFixed(2)}</span>
+                  <span>₹{(item.price * item.quantity).toFixed(2)}</span>
                 </div>
               ))}
             </div>
@@ -169,22 +281,22 @@ export default function BillingPage() {
             <div className="space-y-1.5 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal</span>
-                <span>${selectedOrder?.subtotal.toFixed(2)}</span>
+                <span>₹{selectedOrder?.subtotal.toFixed(2)}</span>
               </div>
               {discountPercent > 0 && (
                 <div className="flex justify-between text-status-ready">
                   <span>Discount ({discountPercent}%)</span>
-                  <span>-${discountAmount.toFixed(2)}</span>
+                  <span>-₹{discountAmount.toFixed(2)}</span>
                 </div>
               )}
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Tax ({taxRate}%)</span>
-                <span>${tax.toFixed(2)}</span>
+                <span>₹{tax.toFixed(2)}</span>
               </div>
               <div className="border-t border-border my-2" />
               <div className="flex justify-between text-base font-bold">
                 <span>Total</span>
-                <span className="text-primary">${total.toFixed(2)}</span>
+                <span className="text-primary">₹{total.toFixed(2)}</span>
               </div>
             </div>
 
@@ -202,13 +314,13 @@ export default function BillingPage() {
                 className="mt-1"
               />
             </div>
-          </div>
               </>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
                 <p className="text-sm">Select an order to view bill</p>
               </div>
             )}
+          </div>
 
           {/* Payment */}
           <div className="space-y-4">
@@ -254,7 +366,7 @@ export default function BillingPage() {
                   <div className="flex justify-between items-center p-2 bg-status-ready/10 rounded-lg">
                     <span className="font-medium text-sm">Change</span>
                     <span className="text-lg font-bold text-status-ready">
-                      ${change.toFixed(2)}
+                      ₹{change.toFixed(2)}
                     </span>
                   </div>
                 )}

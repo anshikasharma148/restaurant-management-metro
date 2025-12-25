@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { settingsAPI } from "@/lib/api"
+import { MenuManagement } from "@/components/menu/MenuManagement"
 import {
   Store,
   Receipt,
@@ -12,6 +13,7 @@ import {
   Bell,
   Printer,
   Save,
+  Utensils,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -77,6 +79,10 @@ export default function SettingsPage() {
               <Store className="w-4 h-4 sm:mr-2" />
               <span className="hidden sm:inline">Restaurant</span>
             </TabsTrigger>
+            <TabsTrigger value="menu" className="flex-1 min-w-0">
+              <Utensils className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Menu</span>
+            </TabsTrigger>
             <TabsTrigger value="billing" className="flex-1 min-w-0">
               <Receipt className="w-4 h-4 sm:mr-2" />
               <span className="hidden sm:inline">Billing</span>
@@ -127,6 +133,11 @@ export default function SettingsPage() {
             </div>
           </TabsContent>
 
+          {/* Menu Management */}
+          <TabsContent value="menu" className="space-y-4">
+            <MenuManagement />
+          </TabsContent>
+
           {/* Billing Settings */}
           <TabsContent value="billing" className="space-y-4">
             <div className="bg-card border border-border rounded-xl p-4 lg:p-6 space-y-4">
@@ -167,24 +178,24 @@ export default function SettingsPage() {
                 <div className="border-t border-dashed border-border my-2" />
                 <div className="flex justify-between text-xs">
                   <span>1x Classic Burger</span>
-                  <span>$11.99</span>
+                  <span>₹11.99</span>
                 </div>
                 <div className="flex justify-between text-xs">
                   <span>1x Soft Drink</span>
-                  <span>$2.99</span>
+                  <span>₹2.99</span>
                 </div>
                 <div className="border-t border-dashed border-border my-2" />
                 <div className="flex justify-between text-xs">
                   <span>Subtotal</span>
-                  <span>$14.98</span>
+                  <span>₹14.98</span>
                 </div>
                 <div className="flex justify-between text-xs">
                   <span>Tax ({taxRate}%)</span>
-                  <span>${(14.98 * parseFloat(taxRate) / 100).toFixed(2)}</span>
+                  <span>₹{(14.98 * parseFloat(taxRate) / 100).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between font-bold text-xs">
                   <span>Total</span>
-                  <span>${(14.98 * (1 + parseFloat(taxRate) / 100)).toFixed(2)}</span>
+                  <span>₹{(14.98 * (1 + parseFloat(taxRate) / 100)).toFixed(2)}</span>
                 </div>
               </div>
             </div>

@@ -14,6 +14,8 @@ import {
   Receipt,
   ArrowRight,
   TrendingUp,
+  RefreshCw,
+  CreditCard,
 } from "lucide-react"
 
 export default function DashboardPage() {
@@ -55,22 +57,27 @@ function AdminDashboard() {
   const [recentOrders, setRecentOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [dashboardStats, orders] = await Promise.all([
-          reportsAPI.getDashboardStats(),
-          ordersAPI.getOrders(),
-        ])
-        setStats(dashboardStats)
-        setRecentOrders(orders.slice(0, 3))
-      } catch (error) {
-        console.error("Failed to load dashboard data", error)
-      } finally {
-        setLoading(false)
-      }
+  const fetchData = async () => {
+    try {
+      setLoading(true)
+      const [dashboardStats, orders] = await Promise.all([
+        reportsAPI.getDashboardStats(),
+        ordersAPI.getOrders(),
+      ])
+      setStats(dashboardStats)
+      setRecentOrders(orders.slice(0, 3))
+    } catch (error) {
+      console.error("Failed to load dashboard data", error)
+    } finally {
+      setLoading(false)
     }
+  }
+
+  useEffect(() => {
     fetchData()
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(fetchData, 30000)
+    return () => clearInterval(interval)
   }, [])
 
   if (loading || !stats) {
@@ -79,11 +86,24 @@ function AdminDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Header with refresh */}
+      <div className="flex justify-end">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={fetchData}
+          disabled={loading}
+        >
+          <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
+      </div>
+
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
         <StatCard
           title="Today's Sales"
-          value={`$${stats.todaySales?.toFixed(2) || "0.00"}`}
+          value={`₹${stats.todaySales?.toFixed(2) || "0.00"}`}
           subtitle={`${stats.todayOrders || 0} orders`}
           icon={DollarSign}
           trend={stats.salesTrend ? { value: Math.abs(stats.salesTrend), isPositive: stats.salesTrend > 0 } : undefined}
@@ -109,10 +129,11 @@ function AdminDashboard() {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           { to: "/orders/new", icon: ShoppingCart, title: "New Order", subtitle: "Create order" },
           { to: "/kitchen", icon: ChefHat, title: "Kitchen", subtitle: "View queue" },
+          { to: "/billing", icon: CreditCard, title: "Billing", subtitle: "Process payment" },
           { to: "/reports", icon: TrendingUp, title: "Reports", subtitle: "Analytics" },
         ].map((action) => (
           <Link key={action.to} to={action.to}>
@@ -136,17 +157,38 @@ function AdminDashboard() {
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">Recent Orders</h2>
-          <Link to="/kitchen">
-            <Button variant="ghost" size="sm">
-              View all <ArrowRight className="w-4 h-4 ml-1" />
-            </Button>
-          </Link>
+          <div className="flex gap-2">
+            <Link to="/billing">
+              <Button variant="outline" size="sm">
+                <CreditCard className="w-4 h-4 mr-1" />
+                Billing
+              </Button>
+            </Link>
+            <Link to="/kitchen">
+              <Button variant="ghost" size="sm">
+                View all <ArrowRight className="w-4 h-4 ml-1" />
+              </Button>
+            </Link>
+          </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {recentOrders.map((order) => {
             const orderId = order._id || order.id
+            const isReady = order.status === "ready"
             return (
-              <OrderCard key={orderId} order={order} showActions={false} />
+              <div key={orderId} className="relative">
+                <OrderCard order={order} showActions={false} />
+                {isReady && (
+                  <div className="absolute top-2 right-2">
+                    <Link to="/billing">
+                      <Button size="sm" className="text-xs">
+                        <CreditCard className="w-3 h-3 mr-1" />
+                        Bill Now
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+              </div>
             )
           })}
         </div>
@@ -184,14 +226,14 @@ function ManagerDashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
         <StatCard
           title="Today's Sales"
-          value={`$${stats.todaySales?.toFixed(2) || "0.00"}`}
+          value={`₹${stats.todaySales?.toFixed(2) || "0.00"}`}
           subtitle={`${stats.todayOrders || 0} orders`}
           icon={DollarSign}
           trend={stats.salesTrend ? { value: Math.abs(stats.salesTrend), isPositive: stats.salesTrend > 0 } : undefined}
         />
         <StatCard
           title="Avg Order"
-          value={`$${avgOrder.toFixed(2)}`}
+          value={`₹${avgOrder.toFixed(2)}`}
           icon={Receipt}
         />
         <StatCard
@@ -245,7 +287,7 @@ function CashierDashboard() {
         <StatCard
           title="Today's Orders"
           value={stats.todayOrders || 0}
-          subtitle={`$${stats.todaySales?.toFixed(2) || "0.00"} in sales`}
+          subtitle={`₹${stats.todaySales?.toFixed(2) || "0.00"} in sales`}
           icon={ShoppingCart}
         />
         <StatCard

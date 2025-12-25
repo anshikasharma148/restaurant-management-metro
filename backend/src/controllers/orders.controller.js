@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Order from '../models/Order.js';
 import Table from '../models/Table.js';
 import Settings from '../models/Settings.js';
@@ -9,7 +10,13 @@ export const getOrders = async (req, res, next) => {
     const query = {};
 
     if (status) {
-      query.status = status;
+      // Handle comma-separated status values (e.g., "pending,preparing,ready")
+      if (status.includes(',')) {
+        const statuses = status.split(',').map(s => s.trim());
+        query.status = { $in: statuses };
+      } else {
+        query.status = status;
+      }
     }
     if (type) {
       query.type = type;
@@ -69,6 +76,32 @@ export const createOrder = async (req, res, next) => {
       });
     }
 
+    // Validate and convert menuItemId to ObjectId
+    const validatedItems = [];
+    for (const item of items) {
+      if (!item.menuItemId) {
+        return res.status(400).json({
+          success: false,
+          error: 'menuItemId is required for all items',
+        });
+      }
+      // Convert string ID to ObjectId if it's a valid ObjectId string
+      let menuItemId = item.menuItemId;
+      if (typeof menuItemId === 'string') {
+        if (!mongoose.Types.ObjectId.isValid(menuItemId)) {
+          return res.status(400).json({
+            success: false,
+            error: `Invalid menuItemId format: ${menuItemId}`,
+          });
+        }
+        menuItemId = new mongoose.Types.ObjectId(menuItemId);
+      }
+      validatedItems.push({
+        ...item,
+        menuItemId,
+      });
+    }
+
     // Validate table if dine-in
     if (type === 'dine-in') {
       if (!tableNumber) {
@@ -102,7 +135,7 @@ export const createOrder = async (req, res, next) => {
     const settings = await Settings.getSettings();
 
     // Calculate totals
-    const totals = calculateOrderTotals(items, settings.taxRate, 0);
+    const totals = calculateOrderTotals(validatedItems, settings.taxRate, 0);
 
     // Generate order number
     const orderNumber = await generateOrderNumber(Order);
@@ -110,7 +143,7 @@ export const createOrder = async (req, res, next) => {
     const order = await Order.create({
       orderNumber,
       type,
-      items,
+      items: validatedItems,
       tableNumber: type === 'dine-in' ? tableNumber : null,
       notes: notes || '',
       subtotal: totals.subtotal,

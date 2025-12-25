@@ -114,13 +114,13 @@ export default function ReportsPage() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6">
             <StatCard
               title="Total Sales"
-              value={`$${salesSummary?.totalSales?.toFixed(2) || "0.00"}`}
+              value={`₹${salesSummary?.totalSales?.toFixed(2) || "0.00"}`}
               subtitle={`${salesSummary?.totalOrders || 0} orders`}
               icon={DollarSign}
             />
             <StatCard
               title="Avg Order"
-              value={`$${salesSummary?.averageOrderValue?.toFixed(2) || "0.00"}`}
+              value={`₹${salesSummary?.averageOrderValue?.toFixed(2) || "0.00"}`}
               icon={TrendingUp}
             />
             <StatCard
@@ -176,7 +176,7 @@ export default function ReportsPage() {
                       </TableCell>
                       <TableCell className="text-right text-sm">{item.quantity}</TableCell>
                       <TableCell className="text-right text-sm font-semibold text-primary">
-                        ${item.revenue.toFixed(2)}
+                        ₹{item.revenue.toFixed(2)}
                       </TableCell>
                     </TableRow>
                   ))
@@ -215,7 +215,7 @@ export default function ReportsPage() {
                       <TableCell className="font-medium text-sm">{category.name}</TableCell>
                       <TableCell className="text-right text-sm">{category.orders}</TableCell>
                       <TableCell className="text-right text-sm font-semibold text-primary">
-                        ${category.revenue.toFixed(2)}
+                        ₹{category.revenue.toFixed(2)}
                       </TableCell>
                     </TableRow>
                   ))

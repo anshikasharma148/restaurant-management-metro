@@ -10,16 +10,22 @@ export const getSalesSummary = async (req, res, next) => {
     if (startDate || endDate) {
       query.createdAt = {};
       if (startDate) {
-        query.createdAt.$gte = new Date(startDate);
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        query.createdAt.$gte = start;
       }
       if (endDate) {
-        query.createdAt.$lte = new Date(endDate);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999); // Include full end date
+        query.createdAt.$lte = end;
       }
     } else {
       // Default to today
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      query.createdAt = { $gte: today };
+      const endOfToday = new Date(today);
+      endOfToday.setHours(23, 59, 59, 999);
+      query.createdAt = { $gte: today, $lte: endOfToday };
     }
 
     const orders = await Order.find(query);
@@ -49,16 +55,22 @@ export const getTopItems = async (req, res, next) => {
     if (startDate || endDate) {
       query.createdAt = {};
       if (startDate) {
-        query.createdAt.$gte = new Date(startDate);
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        query.createdAt.$gte = start;
       }
       if (endDate) {
-        query.createdAt.$lte = new Date(endDate);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999); // Include full end date
+        query.createdAt.$lte = end;
       }
     } else {
       // Default to today
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      query.createdAt = { $gte: today };
+      const endOfToday = new Date(today);
+      endOfToday.setHours(23, 59, 59, 999);
+      query.createdAt = { $gte: today, $lte: endOfToday };
     }
 
     const orders = await Order.find(query);
@@ -101,16 +113,22 @@ export const getCategorySales = async (req, res, next) => {
     if (startDate || endDate) {
       query.createdAt = {};
       if (startDate) {
-        query.createdAt.$gte = new Date(startDate);
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        query.createdAt.$gte = start;
       }
       if (endDate) {
-        query.createdAt.$lte = new Date(endDate);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999); // Include full end date
+        query.createdAt.$lte = end;
       }
     } else {
       // Default to today
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      query.createdAt = { $gte: today };
+      const endOfToday = new Date(today);
+      endOfToday.setHours(23, 59, 59, 999);
+      query.createdAt = { $gte: today, $lte: endOfToday };
     }
 
     const orders = await Order.find(query).populate({

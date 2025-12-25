@@ -56,7 +56,7 @@ export function OrderSummary({
                   <p className="text-sm text-muted-foreground">{item.variant}</p>
                 )}
                 <p className="text-sm text-primary font-semibold mt-1">
-                  ${(item.price * item.quantity).toFixed(2)}
+                  ₹{(item.price * item.quantity).toFixed(2)}
                 </p>
               </div>
 
@@ -97,21 +97,21 @@ export function OrderSummary({
       <div className="border-t border-border p-4 space-y-2">
         <div className="flex justify-between text-sm">
           <span className="text-muted-foreground">Subtotal</span>
-          <span>${subtotal.toFixed(2)}</span>
+          <span>₹{subtotal.toFixed(2)}</span>
         </div>
         {discount > 0 && (
           <div className="flex justify-between text-sm text-status-ready">
             <span>Discount ({discount}%)</span>
-            <span>-${discountAmount.toFixed(2)}</span>
+            <span>-₹{discountAmount.toFixed(2)}</span>
           </div>
         )}
         <div className="flex justify-between text-sm">
           <span className="text-muted-foreground">Tax ({(taxRate * 100).toFixed(0)}%)</span>
-          <span>${tax.toFixed(2)}</span>
+          <span>₹{tax.toFixed(2)}</span>
         </div>
         <div className="flex justify-between text-lg font-bold pt-2 border-t border-border">
           <span>Total</span>
-          <span className="text-primary">${total.toFixed(2)}</span>
+          <span className="text-primary">₹{total.toFixed(2)}</span>
         </div>
       </div>
 
