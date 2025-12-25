@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { MenuItem } from "@/components/orders/MenuItem"
 import { OrderSummary } from "@/components/orders/OrderSummary"
 import { mockCategories, mockMenuItems, mockTables } from "@/lib/mockData"
-import { Search, UtensilsCrossed, ShoppingBag, Users } from "lucide-react"
+import { Search, UtensilsCrossed, ShoppingBag, Users, X } from "lucide-react"
 import type { MenuItem as MenuItemType, OrderType, CartItem, Table } from "@/lib/types"
 
 export default function NewOrderPage() {
@@ -18,8 +18,8 @@ export default function NewOrderPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [cart, setCart] = useState<CartItem[]>([])
   const [showTableSelector, setShowTableSelector] = useState(false)
+  const [showCart, setShowCart] = useState(false)
 
-  // Filter menu items
   const filteredItems = useMemo(() => {
     let items = mockMenuItems.filter((item) => item.available)
 
@@ -37,7 +37,6 @@ export default function NewOrderPage() {
     return items
   }, [selectedCategory, searchQuery])
 
-  // Add item to cart
   const handleAddItem = useCallback((item: MenuItemType, quantity: number, variant?: string) => {
     const variantPrice = item.variants?.find((v) => v.name === variant)?.priceModifier || 0
     const price = item.price + variantPrice
@@ -68,7 +67,6 @@ export default function NewOrderPage() {
     toast.success(`Added ${quantity}x ${item.name}${variant ? ` (${variant})` : ""}`)
   }, [])
 
-  // Update cart item quantity
   const handleUpdateQuantity = useCallback((index: number, quantity: number) => {
     if (quantity <= 0) {
       setCart((prev) => prev.filter((_, i) => i !== index))
@@ -81,12 +79,10 @@ export default function NewOrderPage() {
     }
   }, [])
 
-  // Remove cart item
   const handleRemoveItem = useCallback((index: number) => {
     setCart((prev) => prev.filter((_, i) => i !== index))
   }, [])
 
-  // Submit order
   const handleSubmit = useCallback(() => {
     if (orderType === "dine-in" && !selectedTable) {
       toast.error("Please select a table for dine-in orders")
@@ -103,15 +99,12 @@ export default function NewOrderPage() {
     navigate("/kitchen")
   }, [orderType, selectedTable, cart, navigate])
 
-  // Available tables
-  const availableTables = mockTables.filter((t) => t.status === "available")
-
   return (
-    <div className="h-screen flex flex-col lg:flex-row">
+    <div className="h-[calc(100vh-3.5rem)] lg:h-screen flex flex-col lg:flex-row">
       {/* Main content */}
       <div className="flex-1 flex flex-col min-h-0">
         {/* Header */}
-        <div className="p-4 lg:p-6 border-b border-border space-y-4">
+        <div className="p-4 border-b border-border space-y-3">
           {/* Order type selector */}
           <div className="flex gap-2">
             <Button
@@ -121,7 +114,7 @@ export default function NewOrderPage() {
                 setOrderType("dine-in")
                 setShowTableSelector(true)
               }}
-              className="flex-1"
+              className="flex-1 h-12"
             >
               <UtensilsCrossed className="w-5 h-5 mr-2" />
               Dine-in
@@ -134,18 +127,18 @@ export default function NewOrderPage() {
                 setSelectedTable(null)
                 setShowTableSelector(false)
               }}
-              className="flex-1"
+              className="flex-1 h-12"
             >
               <ShoppingBag className="w-5 h-5 mr-2" />
               Takeaway
             </Button>
           </div>
 
-          {/* Table selector (for dine-in) */}
+          {/* Table selector */}
           {orderType === "dine-in" && showTableSelector && (
-            <div className="p-4 bg-card rounded-lg border border-border animate-slide-up">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold flex items-center gap-2">
+            <div className="p-3 bg-muted/50 rounded-lg border border-border animate-fade-in">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-semibold text-sm flex items-center gap-2">
                   <Users className="w-4 h-4" />
                   Select Table
                 </h3>
@@ -155,7 +148,7 @@ export default function NewOrderPage() {
                   </Button>
                 )}
               </div>
-              <div className="grid grid-cols-5 gap-2">
+              <div className="grid grid-cols-5 sm:grid-cols-8 lg:grid-cols-5 gap-2">
                 {mockTables.map((table) => (
                   <button
                     key={table.id}
@@ -167,19 +160,16 @@ export default function NewOrderPage() {
                     }}
                     disabled={table.status !== "available"}
                     className={cn(
-                      "p-3 rounded-lg border text-center transition-all",
-                      table.status !== "available" && "opacity-50 cursor-not-allowed",
+                      "p-2 rounded-lg border text-center transition-colors",
+                      table.status !== "available" && "opacity-40 cursor-not-allowed",
                       selectedTable?.id === table.id
                         ? "border-primary bg-primary/10 text-primary"
                         : table.status === "available"
-                        ? "border-border bg-muted hover:border-primary/50"
+                        ? "border-border bg-card hover:border-primary/50"
                         : "border-border bg-muted/50"
                     )}
                   >
-                    <span className="text-lg font-bold">{table.number}</span>
-                    <span className="text-xs text-muted-foreground block">
-                      {table.capacity} seats
-                    </span>
+                    <span className="text-sm font-bold">{table.number}</span>
                   </button>
                 ))}
               </div>
@@ -190,10 +180,10 @@ export default function NewOrderPage() {
           {orderType === "dine-in" && selectedTable && !showTableSelector && (
             <button
               onClick={() => setShowTableSelector(true)}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 text-primary text-sm"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 text-primary text-sm font-medium"
             >
               <Users className="w-4 h-4" />
-              Table {selectedTable.number} ({selectedTable.capacity} seats)
+              Table {selectedTable.number}
             </button>
           )}
 
@@ -205,21 +195,22 @@ export default function NewOrderPage() {
               placeholder="Search menu..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 h-12"
+              className="pl-10 h-11"
             />
           </div>
 
           {/* Category tabs */}
           {!searchQuery && (
-            <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 lg:mx-0 lg:px-0">
+            <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4">
               {mockCategories.map((category) => (
                 <Button
                   key={category.id}
                   variant={selectedCategory === category.id ? "default" : "outline"}
+                  size="sm"
                   onClick={() => setSelectedCategory(category.id)}
                   className="shrink-0"
                 >
-                  <span className="mr-2">{category.emoji}</span>
+                  <span className="mr-1.5">{category.emoji}</span>
                   {category.name}
                 </Button>
               ))}
@@ -228,8 +219,8 @@ export default function NewOrderPage() {
         </div>
 
         {/* Menu grid */}
-        <div className="flex-1 overflow-y-auto p-4 lg:p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="flex-1 overflow-y-auto p-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {filteredItems.map((item) => (
               <MenuItem key={item.id} item={item} onAdd={handleAddItem} />
             ))}
@@ -237,15 +228,28 @@ export default function NewOrderPage() {
 
           {filteredItems.length === 0 && (
             <div className="text-center py-12 text-muted-foreground">
-              <p className="text-lg">No items found</p>
+              <p className="text-base">No items found</p>
               <p className="text-sm">Try a different search or category</p>
             </div>
           )}
         </div>
+
+        {/* Mobile cart button */}
+        {cart.length > 0 && (
+          <div className="lg:hidden p-4 border-t border-border bg-card">
+            <Button 
+              size="lg" 
+              className="w-full h-12"
+              onClick={() => setShowCart(true)}
+            >
+              View Cart ({cart.length} items)
+            </Button>
+          </div>
+        )}
       </div>
 
-      {/* Order summary sidebar */}
-      <div className="w-full lg:w-96 border-t lg:border-t-0 lg:border-l border-border bg-card">
+      {/* Desktop Order summary sidebar */}
+      <div className="hidden lg:block w-96 border-l border-border bg-card">
         <OrderSummary
           items={cart}
           onUpdateQuantity={handleUpdateQuantity}
@@ -253,6 +257,35 @@ export default function NewOrderPage() {
           onSubmit={handleSubmit}
         />
       </div>
+
+      {/* Mobile Cart Modal */}
+      {showCart && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div 
+            className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+            onClick={() => setShowCart(false)}
+          />
+          <div className="absolute inset-x-0 bottom-0 bg-card border-t border-border rounded-t-2xl max-h-[85vh] flex flex-col animate-slide-up">
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <h2 className="font-semibold">Your Order</h2>
+              <Button variant="ghost" size="icon" onClick={() => setShowCart(false)}>
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <OrderSummary
+                items={cart}
+                onUpdateQuantity={handleUpdateQuantity}
+                onRemoveItem={handleRemoveItem}
+                onSubmit={() => {
+                  setShowCart(false)
+                  handleSubmit()
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

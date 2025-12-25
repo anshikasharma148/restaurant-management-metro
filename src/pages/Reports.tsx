@@ -18,7 +18,6 @@ import {
   Calendar,
 } from "lucide-react"
 
-// Mock report data
 const topItems = [
   { name: "Classic Burger", quantity: 45, revenue: 539.55 },
   { name: "Pepperoni Pizza", quantity: 38, revenue: 568.62 },
@@ -43,20 +42,20 @@ export default function ReportsPage() {
     <div className="min-h-screen p-4 lg:p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 lg:mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Reports & Analytics</h1>
-            <p className="text-muted-foreground">Track your restaurant's performance</p>
+            <h1 className="text-xl lg:text-2xl font-bold text-foreground">Reports</h1>
+            <p className="text-sm text-muted-foreground">Track performance</p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {/* Date range selector */}
             <div className="flex bg-muted rounded-lg p-1">
               {(["today", "week", "month"] as const).map((range) => (
                 <button
                   key={range}
                   onClick={() => setDateRange(range)}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors capitalize ${
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors capitalize ${
                     dateRange === range
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:text-foreground"
@@ -67,42 +66,42 @@ export default function ReportsPage() {
               ))}
             </div>
 
-            <Button variant="outline">
+            <Button variant="outline" size="sm" className="hidden sm:flex">
               <Calendar className="w-4 h-4 mr-2" />
-              Custom Range
+              Custom
             </Button>
 
-            <Button variant="outline">
-              <Download className="w-4 h-4 mr-2" />
-              Export CSV
+            <Button variant="outline" size="sm">
+              <Download className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Export</span>
             </Button>
           </div>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6">
           <StatCard
             title="Total Sales"
-            value="$5,693.60"
+            value="$5,693"
             subtitle="544 orders"
             icon={DollarSign}
             trend={{ value: 12.5, isPositive: true }}
           />
           <StatCard
-            title="Average Order Value"
+            title="Avg Order"
             value="$10.47"
             icon={TrendingUp}
             trend={{ value: 3.2, isPositive: true }}
           />
           <StatCard
-            title="Total Orders"
+            title="Orders"
             value="544"
-            subtitle="432 dine-in, 112 takeaway"
+            subtitle="432 dine-in"
             icon={ShoppingCart}
             trend={{ value: 8.4, isPositive: true }}
           />
           <StatCard
-            title="Customers Served"
+            title="Customers"
             value="387"
             icon={Users}
             trend={{ value: 15.2, isPositive: true }}
@@ -110,10 +109,10 @@ export default function ReportsPage() {
         </div>
 
         {/* Tables */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
           {/* Top Selling Items */}
-          <div className="bg-card border border-border rounded-lg p-6">
-            <h2 className="text-lg font-semibold mb-4">Top Selling Items</h2>
+          <div className="bg-card border border-border rounded-xl p-4 lg:p-6">
+            <h2 className="font-semibold mb-4">Top Selling Items</h2>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -127,14 +126,14 @@ export default function ReportsPage() {
                   <TableRow key={item.name}>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <span className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
+                        <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
                           {index + 1}
                         </span>
-                        {item.name}
+                        <span className="text-sm">{item.name}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-right">{item.quantity}</TableCell>
-                    <TableCell className="text-right font-semibold text-primary">
+                    <TableCell className="text-right text-sm">{item.quantity}</TableCell>
+                    <TableCell className="text-right text-sm font-semibold text-primary">
                       ${item.revenue.toFixed(2)}
                     </TableCell>
                   </TableRow>
@@ -144,8 +143,8 @@ export default function ReportsPage() {
           </div>
 
           {/* Category Sales */}
-          <div className="bg-card border border-border rounded-lg p-6">
-            <h2 className="text-lg font-semibold mb-4">Sales by Category</h2>
+          <div className="bg-card border border-border rounded-xl p-4 lg:p-6">
+            <h2 className="font-semibold mb-4">Sales by Category</h2>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -157,9 +156,9 @@ export default function ReportsPage() {
               <TableBody>
                 {categorySales.map((category) => (
                   <TableRow key={category.name}>
-                    <TableCell className="font-medium">{category.name}</TableCell>
-                    <TableCell className="text-right">{category.orders}</TableCell>
-                    <TableCell className="text-right font-semibold text-primary">
+                    <TableCell className="font-medium text-sm">{category.name}</TableCell>
+                    <TableCell className="text-right text-sm">{category.orders}</TableCell>
+                    <TableCell className="text-right text-sm font-semibold text-primary">
                       ${category.revenue.toFixed(2)}
                     </TableCell>
                   </TableRow>
