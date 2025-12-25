@@ -1,9 +1,10 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Kbd } from "@/components/ui/kbd"
-import { mockOrders } from "@/lib/mockData"
+import { ordersAPI, paymentsAPI, settingsAPI } from "@/lib/api"
+import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import {
   CreditCard,
@@ -24,21 +25,72 @@ const paymentMethods: { value: PaymentMethod; label: string; icon: typeof Credit
 ]
 
 export default function BillingPage() {
-  const [selectedOrder, setSelectedOrder] = useState(mockOrders[3])
+  const [selectedOrder, setSelectedOrder] = useState<any>(null)
+  const [readyOrders, setReadyOrders] = useState<any[]>([])
   const [selectedPayment, setSelectedPayment] = useState<PaymentMethod>("cash")
   const [discount, setDiscount] = useState("")
   const [amountReceived, setAmountReceived] = useState("")
+  const [taxRate, setTaxRate] = useState(10)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        const [orders, settings] = await Promise.all([
+          ordersAPI.getOrders({ status: "ready" }),
+          settingsAPI.getSettings(),
+        ])
+        setReadyOrders(orders)
+        if (orders.length > 0 && !selectedOrder) {
+          setSelectedOrder(orders[0])
+        }
+        setTaxRate(settings.taxRate || 10)
+      } catch (error: any) {
+        toast.error(error.message || "Failed to load data")
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
 
   const discountPercent = parseFloat(discount) || 0
-  const discountAmount = selectedOrder.subtotal * (discountPercent / 100)
-  const taxableAmount = selectedOrder.subtotal - discountAmount
-  const tax = taxableAmount * 0.1
+  const discountAmount = selectedOrder ? selectedOrder.subtotal * (discountPercent / 100) : 0
+  const taxableAmount = selectedOrder ? selectedOrder.subtotal - discountAmount : 0
+  const tax = taxableAmount * (taxRate / 100)
   const total = taxableAmount + tax
 
   const received = parseFloat(amountReceived) || 0
   const change = received - total
 
-  const readyOrders = mockOrders.filter((o) => o.status === "ready")
+  const handleProcessPayment = async () => {
+    if (!selectedOrder) {
+      toast.error("Please select an order")
+      return
+    }
+
+    try {
+      await paymentsAPI.processPayment({
+        orderId: selectedOrder._id || selectedOrder.id,
+        method: selectedPayment,
+        receivedAmount: selectedPayment === "cash" ? received : total,
+      })
+      toast.success("Payment processed successfully!")
+      setAmountReceived("")
+      setDiscount("")
+      // Refresh orders
+      const orders = await ordersAPI.getOrders({ status: "ready" })
+      setReadyOrders(orders)
+      if (orders.length > 0) {
+        setSelectedOrder(orders[0])
+      } else {
+        setSelectedOrder(null)
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to process payment")
+    }
+  }
 
   return (
     <div className="min-h-screen p-4 lg:p-6">
@@ -49,42 +101,51 @@ export default function BillingPage() {
           {/* Order Selection */}
           <div className="space-y-3">
             <h2 className="font-semibold">Ready for Payment</h2>
-            {readyOrders.length === 0 ? (
+            {loading ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <p className="text-sm">Loading...</p>
+              </div>
+            ) : readyOrders.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground border border-dashed border-border rounded-lg">
                 <p className="text-sm">No orders ready</p>
               </div>
             ) : (
               <div className="space-y-2">
-                {readyOrders.map((order) => (
-                  <button
-                    key={order.id}
-                    onClick={() => setSelectedOrder(order)}
-                    className={cn(
-                      "w-full p-3 rounded-lg border text-left transition-colors",
-                      selectedOrder?.id === order.id
-                        ? "border-primary bg-primary/10"
-                        : "border-border bg-card hover:border-primary/50"
-                    )}
-                  >
-                    <div className="flex justify-between items-center">
-                      <span className="font-bold text-primary">#{order.orderNumber}</span>
-                      <span className="font-semibold">${order.total.toFixed(2)}</span>
-                    </div>
-                    <div className="text-sm text-muted-foreground mt-1">
-                      {order.type === "dine-in" ? `Table ${order.tableNumber}` : "Takeaway"} • {order.items.length} items
-                    </div>
-                  </button>
-                ))}
+                {readyOrders.map((order) => {
+                  const orderId = order._id || order.id
+                  return (
+                    <button
+                      key={orderId}
+                      onClick={() => setSelectedOrder(order)}
+                      className={cn(
+                        "w-full p-3 rounded-lg border text-left transition-colors",
+                        (selectedOrder?._id === orderId || selectedOrder?.id === orderId)
+                          ? "border-primary bg-primary/10"
+                          : "border-border bg-card hover:border-primary/50"
+                      )}
+                    >
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-primary">#{order.orderNumber}</span>
+                        <span className="font-semibold">${order.total.toFixed(2)}</span>
+                      </div>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        {order.type === "dine-in" ? `Table ${order.tableNumber}` : "Takeaway"} • {order.items.length} items
+                      </div>
+                    </button>
+                  )
+                })}
               </div>
             )}
           </div>
 
           {/* Bill Preview */}
           <div className="bg-card border border-border rounded-xl p-4 lg:p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold">Bill Preview</h2>
-              <span className="text-xl font-bold text-primary">#{selectedOrder?.orderNumber}</span>
-            </div>
+            {selectedOrder ? (
+              <>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="font-semibold">Bill Preview</h2>
+                  <span className="text-xl font-bold text-primary">#{selectedOrder?.orderNumber}</span>
+                </div>
 
             {/* Items */}
             <div className="space-y-2 mb-4">
@@ -117,7 +178,7 @@ export default function BillingPage() {
                 </div>
               )}
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Tax (10%)</span>
+                <span className="text-muted-foreground">Tax ({taxRate}%)</span>
                 <span>${tax.toFixed(2)}</span>
               </div>
               <div className="border-t border-border my-2" />
@@ -142,6 +203,12 @@ export default function BillingPage() {
               />
             </div>
           </div>
+              </>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <p className="text-sm">Select an order to view bill</p>
+              </div>
+            )}
 
           {/* Payment */}
           <div className="space-y-4">
@@ -196,7 +263,7 @@ export default function BillingPage() {
 
             {/* Action buttons */}
             <div className="space-y-2">
-              <Button size="lg" className="w-full" disabled={!selectedOrder}>
+              <Button size="lg" className="w-full" disabled={!selectedOrder} onClick={handleProcessPayment}>
                 <Check className="w-5 h-5 mr-2" />
                 Confirm Payment
                 <Kbd className="ml-2">F12</Kbd>

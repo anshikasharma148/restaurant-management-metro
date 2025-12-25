@@ -3,7 +3,8 @@ import { StatCard } from "@/components/dashboard/StatCard"
 import { OrderCard } from "@/components/orders/OrderCard"
 import { Button } from "@/components/ui/button"
 import { Link } from "react-router-dom"
-import { mockOrders } from "@/lib/mockData"
+import { reportsAPI, ordersAPI } from "@/lib/api"
+import { useEffect, useState } from "react"
 import {
   DollarSign,
   ShoppingCart,
@@ -50,8 +51,31 @@ export default function DashboardPage() {
 }
 
 function AdminDashboard() {
-  const pendingOrders = mockOrders.filter((o) => o.status === "pending").length
-  const preparingOrders = mockOrders.filter((o) => o.status === "preparing").length
+  const [stats, setStats] = useState<any>(null)
+  const [recentOrders, setRecentOrders] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [dashboardStats, orders] = await Promise.all([
+          reportsAPI.getDashboardStats(),
+          ordersAPI.getOrders(),
+        ])
+        setStats(dashboardStats)
+        setRecentOrders(orders.slice(0, 3))
+      } catch (error) {
+        console.error("Failed to load dashboard data", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
+
+  if (loading || !stats) {
+    return <div className="text-center py-12">Loading...</div>
+  }
 
   return (
     <div className="space-y-6">
@@ -59,29 +83,28 @@ function AdminDashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
         <StatCard
           title="Today's Sales"
-          value="$2,847"
-          subtitle="142 orders"
+          value={`$${stats.todaySales?.toFixed(2) || "0.00"}`}
+          subtitle={`${stats.todayOrders || 0} orders`}
           icon={DollarSign}
-          trend={{ value: 12.5, isPositive: true }}
+          trend={stats.salesTrend ? { value: Math.abs(stats.salesTrend), isPositive: stats.salesTrend > 0 } : undefined}
         />
         <StatCard
           title="Active Orders"
-          value={pendingOrders + preparingOrders}
-          subtitle={`${pendingOrders} pending`}
+          value={stats.activeOrders || 0}
+          subtitle={`${stats.pendingOrders || 0} pending`}
           icon={ShoppingCart}
         />
         <StatCard
-          title="Customers"
-          value="89"
-          subtitle="vs 76 yesterday"
-          icon={Users}
-          trend={{ value: 17.1, isPositive: true }}
+          title="Preparing"
+          value={stats.preparingOrders || 0}
+          subtitle="In kitchen"
+          icon={ChefHat}
         />
         <StatCard
-          title="Low Stock"
-          value="3"
-          subtitle="Need restock"
-          icon={AlertTriangle}
+          title="Ready"
+          value={(stats.activeOrders || 0) - (stats.pendingOrders || 0) - (stats.preparingOrders || 0)}
+          subtitle="Ready for pickup"
+          icon={Receipt}
         />
       </div>
 
@@ -120,9 +143,12 @@ function AdminDashboard() {
           </Link>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {mockOrders.slice(0, 3).map((order) => (
-            <OrderCard key={order.id} order={order} showActions={false} />
-          ))}
+          {recentOrders.map((order) => {
+            const orderId = order._id || order.id
+            return (
+              <OrderCard key={orderId} order={order} showActions={false} />
+            )
+          })}
         </div>
       </div>
     </div>
@@ -130,32 +156,54 @@ function AdminDashboard() {
 }
 
 function ManagerDashboard() {
+  const [stats, setStats] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const dashboardStats = await reportsAPI.getDashboardStats()
+        setStats(dashboardStats)
+      } catch (error) {
+        console.error("Failed to load dashboard data", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
+
+  if (loading || !stats) {
+    return <div className="text-center py-12">Loading...</div>
+  }
+
+  const avgOrder = stats.todayOrders > 0 ? (stats.todaySales / stats.todayOrders) : 0
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
         <StatCard
           title="Today's Sales"
-          value="$2,847"
-          subtitle="142 orders"
+          value={`$${stats.todaySales?.toFixed(2) || "0.00"}`}
+          subtitle={`${stats.todayOrders || 0} orders`}
           icon={DollarSign}
-          trend={{ value: 12.5, isPositive: true }}
+          trend={stats.salesTrend ? { value: Math.abs(stats.salesTrend), isPositive: stats.salesTrend > 0 } : undefined}
         />
         <StatCard
           title="Avg Order"
-          value="$20.05"
+          value={`$${avgOrder.toFixed(2)}`}
           icon={Receipt}
-          trend={{ value: 5.2, isPositive: true }}
         />
         <StatCard
-          title="Peak Hour"
-          value="12-1 PM"
-          subtitle="38 orders"
+          title="Active Orders"
+          value={stats.activeOrders || 0}
+          subtitle={`${stats.pendingOrders || 0} pending`}
           icon={TrendingUp}
         />
         <StatCard
-          title="Staff Active"
-          value="6"
-          subtitle="2 cashiers, 4 kitchen"
+          title="Preparing"
+          value={stats.preparingOrders || 0}
+          subtitle="In kitchen"
           icon={Users}
         />
       </div>
@@ -170,19 +218,40 @@ function ManagerDashboard() {
 }
 
 function CashierDashboard() {
+  const [stats, setStats] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const dashboardStats = await reportsAPI.getDashboardStats()
+        setStats(dashboardStats)
+      } catch (error) {
+        console.error("Failed to load dashboard data", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
+
+  if (loading || !stats) {
+    return <div className="text-center py-12">Loading...</div>
+  }
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3">
         <StatCard
-          title="My Orders"
-          value="28"
-          subtitle="$562 in sales"
+          title="Today's Orders"
+          value={stats.todayOrders || 0}
+          subtitle={`$${stats.todaySales?.toFixed(2) || "0.00"} in sales`}
           icon={ShoppingCart}
         />
         <StatCard
           title="Pending"
-          value="2"
-          subtitle="Tables 6 & 9"
+          value={stats.pendingOrders || 0}
+          subtitle="Awaiting payment"
           icon={Receipt}
         />
       </div>
@@ -195,11 +264,14 @@ function CashierDashboard() {
       </Link>
 
       <div>
-        <h2 className="text-lg font-semibold mb-4">My Recent Orders</h2>
+        <h2 className="text-lg font-semibold mb-4">Recent Orders</h2>
         <div className="space-y-3">
-          {mockOrders.slice(0, 2).map((order) => (
-            <OrderCard key={order.id} order={order} showActions={false} />
-          ))}
+          {stats.recentOrders?.slice(0, 2).map((order: any) => {
+            const orderId = order._id || order.id
+            return (
+              <OrderCard key={orderId} order={order} showActions={false} />
+            )
+          }) || <p className="text-muted-foreground text-sm">No recent orders</p>}
         </div>
       </div>
     </div>
@@ -207,19 +279,38 @@ function CashierDashboard() {
 }
 
 function KitchenDashboard() {
-  const pendingOrders = mockOrders.filter((o) => o.status === "pending" || o.status === "preparing")
+  const [stats, setStats] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const dashboardStats = await reportsAPI.getDashboardStats()
+        setStats(dashboardStats)
+      } catch (error) {
+        console.error("Failed to load dashboard data", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
+
+  if (loading || !stats) {
+    return <div className="text-center py-12">Loading...</div>
+  }
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3">
         <StatCard
           title="Pending"
-          value={pendingOrders.filter((o) => o.status === "pending").length}
+          value={stats.pendingOrders || 0}
           icon={AlertTriangle}
         />
         <StatCard
           title="Preparing"
-          value={pendingOrders.filter((o) => o.status === "preparing").length}
+          value={stats.preparingOrders || 0}
           icon={ChefHat}
         />
       </div>

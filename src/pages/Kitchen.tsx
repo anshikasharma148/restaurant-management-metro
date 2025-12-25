@@ -1,24 +1,44 @@
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { OrderCard } from "@/components/orders/OrderCard"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { Button } from "@/components/ui/button"
-import { mockOrders } from "@/lib/mockData"
+import { ordersAPI } from "@/lib/api"
+import { toast } from "sonner"
 import { RefreshCw, Volume2, VolumeX } from "lucide-react"
 import type { Order, OrderStatus } from "@/lib/types"
 
 export default function KitchenPage() {
-  const [orders, setOrders] = useState<Order[]>(mockOrders)
+  const [orders, setOrders] = useState<Order[]>([])
   const [soundEnabled, setSoundEnabled] = useState(true)
+  const [loading, setLoading] = useState(true)
 
-  const handleStatusChange = useCallback((orderId: string, newStatus: OrderStatus) => {
-    setOrders((prev) =>
-      prev.map((order) =>
-        order.id === orderId
-          ? { ...order, status: newStatus, updatedAt: new Date().toISOString() }
-          : order
-      )
-    )
+  const fetchOrders = useCallback(async () => {
+    try {
+      setLoading(true)
+      const data = await ordersAPI.getOrders({ status: "pending,preparing,ready" })
+      setOrders(data)
+    } catch (error: any) {
+      toast.error(error.message || "Failed to load orders")
+    } finally {
+      setLoading(false)
+    }
   }, [])
+
+  useEffect(() => {
+    fetchOrders()
+    const interval = setInterval(fetchOrders, 5000) // Refresh every 5 seconds
+    return () => clearInterval(interval)
+  }, [fetchOrders])
+
+  const handleStatusChange = useCallback(async (orderId: string, newStatus: OrderStatus) => {
+    try {
+      await ordersAPI.updateOrderStatus(orderId, newStatus)
+      await fetchOrders()
+      toast.success("Order status updated")
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update order status")
+    }
+  }, [fetchOrders])
 
   const pendingOrders = orders.filter((o) => o.status === "pending")
   const preparingOrders = orders.filter((o) => o.status === "preparing")
@@ -48,8 +68,8 @@ export default function KitchenPage() {
           >
             {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
           </Button>
-          <Button variant="outline" size="icon">
-            <RefreshCw className="w-4 h-4" />
+          <Button variant="outline" size="icon" onClick={fetchOrders} disabled={loading}>
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </Button>
         </div>
       </div>
@@ -76,58 +96,73 @@ export default function KitchenPage() {
       </div>
 
       {/* Orders grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
-        {/* Pending Column */}
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <StatusBadge status="pending" />
-            <span className="text-sm text-muted-foreground">New orders</span>
-          </div>
-          {pendingOrders.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground border border-dashed border-border rounded-lg">
-              <p className="text-sm">No pending orders</p>
-            </div>
-          ) : (
-            pendingOrders.map((order) => (
-              <OrderCard key={order.id} order={order} onStatusChange={handleStatusChange} />
-            ))
-          )}
+      {loading ? (
+        <div className="text-center py-12 text-muted-foreground">
+          <p className="text-base">Loading orders...</p>
         </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
+          {/* Pending Column */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <StatusBadge status="pending" />
+              <span className="text-sm text-muted-foreground">New orders</span>
+            </div>
+            {pendingOrders.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground border border-dashed border-border rounded-lg">
+                <p className="text-sm">No pending orders</p>
+              </div>
+            ) : (
+              pendingOrders.map((order) => {
+                const orderId = order._id || order.id
+                return (
+                  <OrderCard key={orderId} order={order} onStatusChange={handleStatusChange} />
+                )
+              })
+            )}
+          </div>
 
-        {/* Preparing Column */}
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <StatusBadge status="preparing" />
-            <span className="text-sm text-muted-foreground">In progress</span>
-          </div>
-          {preparingOrders.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground border border-dashed border-border rounded-lg">
-              <p className="text-sm">No orders in progress</p>
+          {/* Preparing Column */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <StatusBadge status="preparing" />
+              <span className="text-sm text-muted-foreground">In progress</span>
             </div>
-          ) : (
-            preparingOrders.map((order) => (
-              <OrderCard key={order.id} order={order} onStatusChange={handleStatusChange} />
-            ))
-          )}
-        </div>
+            {preparingOrders.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground border border-dashed border-border rounded-lg">
+                <p className="text-sm">No orders in progress</p>
+              </div>
+            ) : (
+              preparingOrders.map((order) => {
+                const orderId = order._id || order.id
+                return (
+                  <OrderCard key={orderId} order={order} onStatusChange={handleStatusChange} />
+                )
+              })
+            )}
+          </div>
 
-        {/* Ready Column */}
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <StatusBadge status="ready" />
-            <span className="text-sm text-muted-foreground">Ready for pickup</span>
-          </div>
-          {readyOrders.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground border border-dashed border-border rounded-lg">
-              <p className="text-sm">No orders ready</p>
+          {/* Ready Column */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <StatusBadge status="ready" />
+              <span className="text-sm text-muted-foreground">Ready for pickup</span>
             </div>
-          ) : (
-            readyOrders.map((order) => (
-              <OrderCard key={order.id} order={order} onStatusChange={handleStatusChange} />
-            ))
-          )}
+            {readyOrders.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground border border-dashed border-border rounded-lg">
+                <p className="text-sm">No orders ready</p>
+              </div>
+            ) : (
+              readyOrders.map((order) => {
+                const orderId = order._id || order.id
+                return (
+                  <OrderCard key={orderId} order={order} onStatusChange={handleStatusChange} />
+                )
+              })
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

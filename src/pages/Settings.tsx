@@ -1,9 +1,10 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { settingsAPI } from "@/lib/api"
 import {
   Store,
   Receipt,
@@ -22,9 +23,47 @@ export default function SettingsPage() {
   const [serviceCharge, setServiceCharge] = useState("0")
   const [soundNotifications, setSoundNotifications] = useState(true)
   const [autoPrint, setAutoPrint] = useState(false)
+  const [operatingHours, setOperatingHours] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const handleSave = () => {
-    toast.success("Settings saved successfully")
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        setLoading(true)
+        const settings = await settingsAPI.getSettings()
+        setRestaurantName(settings.restaurantName || "Metro Restaurant")
+        setAddress(settings.address || "")
+        setPhone(settings.phone || "")
+        setTaxRate(String(settings.taxRate || 10))
+        setServiceCharge(String(settings.serviceCharge || 0))
+        setSoundNotifications(settings.soundNotifications !== false)
+        setAutoPrint(settings.autoPrint || false)
+        setOperatingHours(settings.operatingHours || [])
+      } catch (error: any) {
+        toast.error(error.message || "Failed to load settings")
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchSettings()
+  }, [])
+
+  const handleSave = async () => {
+    try {
+      await settingsAPI.updateSettings({
+        restaurantName,
+        address,
+        phone,
+        taxRate: parseFloat(taxRate),
+        serviceCharge: parseFloat(serviceCharge),
+        soundNotifications,
+        autoPrint,
+        operatingHours,
+      })
+      toast.success("Settings saved successfully")
+    } catch (error: any) {
+      toast.error(error.message || "Failed to save settings")
+    }
   }
 
   return (
@@ -157,16 +196,49 @@ export default function SettingsPage() {
               <h2 className="font-semibold">Operating Hours</h2>
               
               <div className="space-y-3">
-                {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map((day) => (
-                  <div key={day} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                    <span className="font-medium text-sm">{day}</span>
-                    <div className="flex items-center gap-2">
-                      <Input type="time" defaultValue="10:00" className="w-24 text-sm" />
-                      <span className="text-muted-foreground text-sm">to</span>
-                      <Input type="time" defaultValue="22:00" className="w-24 text-sm" />
+                {operatingHours.length > 0 ? (
+                  operatingHours.map((hour: any) => (
+                    <div key={hour.day} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                      <span className="font-medium text-sm">{hour.day}</span>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="time"
+                          value={hour.openTime}
+                          onChange={(e) => {
+                            const updated = operatingHours.map((h: any) =>
+                              h.day === hour.day ? { ...h, openTime: e.target.value } : h
+                            )
+                            setOperatingHours(updated)
+                          }}
+                          className="w-24 text-sm"
+                        />
+                        <span className="text-muted-foreground text-sm">to</span>
+                        <Input
+                          type="time"
+                          value={hour.closeTime}
+                          onChange={(e) => {
+                            const updated = operatingHours.map((h: any) =>
+                              h.day === hour.day ? { ...h, closeTime: e.target.value } : h
+                            )
+                            setOperatingHours(updated)
+                          }}
+                          className="w-24 text-sm"
+                        />
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map((day) => (
+                    <div key={day} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                      <span className="font-medium text-sm">{day}</span>
+                      <div className="flex items-center gap-2">
+                        <Input type="time" defaultValue="10:00" className="w-24 text-sm" />
+                        <span className="text-muted-foreground text-sm">to</span>
+                        <Input type="time" defaultValue="22:00" className="w-24 text-sm" />
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </TabsContent>

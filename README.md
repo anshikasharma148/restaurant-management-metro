@@ -1,73 +1,206 @@
-# Welcome to your Lovable project
+# Metro Restaurant Management System
 
-## Project info
+A comprehensive restaurant management system built for Metro Hotel, featuring order management, kitchen display, billing, reporting, and settings management.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Features
 
-## How can I edit this code?
+- **Order Management**: Create and manage dine-in and takeaway orders
+- **Kitchen Display**: Real-time order tracking with status updates
+- **Billing System**: Process payments with multiple payment methods
+- **Reports & Analytics**: Sales reports, top items, and category-wise sales
+- **Settings Management**: Configure restaurant details, tax rates, and operating hours
+- **Role-Based Access**: Different access levels for Admin, Manager, Cashier, and Kitchen staff
 
-There are several ways of editing your application.
+## Tech Stack
 
-**Use Lovable**
+### Frontend
+- React 18
+- TypeScript
+- Vite
+- Tailwind CSS
+- shadcn/ui components
+- React Router
+- TanStack Query
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+### Backend
+- Node.js
+- Express.js
+- MongoDB with Mongoose
+- JWT Authentication
+- bcrypt for password hashing
 
-Changes made via Lovable will be committed automatically to this repo.
+## Getting Started
 
-**Use your preferred IDE**
+### Prerequisites
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- Node.js (v18 or higher)
+- MongoDB (local or cloud instance)
+- npm or yarn
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Installation
 
-Follow these steps:
+1. Clone the repository:
+```bash
+git clone https://github.com/anshikasharma148/restaurant-management-metro.git
+cd restaurant-management-system-demo
+```
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+2. Install frontend dependencies:
+```bash
+npm install
+```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+3. Install backend dependencies:
+```bash
+cd backend
+npm install
+```
 
-# Step 3: Install the necessary dependencies.
-npm i
+4. Set up environment variables:
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+Create a `.env` file in the `backend` directory:
+```env
+PORT=3000
+NODE_ENV=development
+MONGODB_URI=mongodb://localhost:27017/metro-restaurant
+JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+JWT_EXPIRE=7d
+FRONTEND_URL=http://localhost:8080
+```
+
+Create a `.env` file in the root directory for frontend:
+```env
+VITE_API_URL=http://localhost:3000/api
+```
+
+5. Seed the database:
+```bash
+cd backend
+npm run seed
+```
+
+This will create:
+- Default users (admin, manager, cashier, kitchen)
+- Sample menu items and categories
+- Tables
+- Settings
+
+Default login credentials:
+- Admin: admin@metro.com / admin123
+- Manager: manager@metro.com / manager123
+- Cashier: cashier@metro.com / cashier123
+- Kitchen: kitchen@metro.com / kitchen123
+
+6. Start the backend server:
+```bash
+cd backend
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+7. Start the frontend development server (in a new terminal):
+```bash
+npm run dev
+```
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+The application will be available at:
+- Frontend: http://localhost:8080
+- Backend API: http://localhost:3000
 
-**Use GitHub Codespaces**
+## Project Structure
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+```
+├── backend/
+│   ├── src/
+│   │   ├── config/          # Database and JWT configuration
+│   │   ├── controllers/      # Route controllers
+│   │   ├── middleware/       # Auth and error middleware
+│   │   ├── models/           # MongoDB models
+│   │   ├── routes/           # API routes
+│   │   ├── utils/            # Helper functions and seed script
+│   │   └── server.js         # Express server entry point
+│   ├── .env.example
+│   └── package.json
+├── src/
+│   ├── components/           # React components
+│   ├── hooks/               # Custom React hooks
+│   ├── lib/                 # Utilities and API client
+│   ├── pages/               # Page components
+│   └── main.tsx            # React entry point
+└── package.json
+```
 
-## What technologies are used for this project?
+## API Endpoints
 
-This project is built with:
+### Authentication
+- `POST /api/auth/login` - User login
+- `POST /api/auth/logout` - User logout
+- `GET /api/auth/me` - Get current user
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### Menu
+- `GET /api/menu/items` - Get all menu items
+- `GET /api/menu/categories` - Get all categories
+- `POST /api/menu/items` - Create menu item (Admin/Manager)
+- `PUT /api/menu/items/:id` - Update menu item (Admin/Manager)
+- `DELETE /api/menu/items/:id` - Delete menu item (Admin)
 
-## How can I deploy this project?
+### Orders
+- `GET /api/orders` - Get orders (with filters)
+- `POST /api/orders` - Create new order
+- `GET /api/orders/:id` - Get order details
+- `PUT /api/orders/:id/status` - Update order status
+- `PUT /api/orders/:id` - Update order (Admin/Manager)
+- `DELETE /api/orders/:id` - Cancel order (Admin)
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+### Tables
+- `GET /api/tables` - Get all tables
+- `PUT /api/tables/:id/status` - Update table status
 
-## Can I connect a custom domain to my Lovable project?
+### Payments
+- `POST /api/payments` - Process payment
+- `GET /api/payments` - Get payments (with filters)
 
-Yes, you can!
+### Reports
+- `GET /api/reports/sales` - Sales summary
+- `GET /api/reports/top-items` - Top selling items
+- `GET /api/reports/category-sales` - Sales by category
+- `GET /api/reports/dashboard` - Dashboard statistics
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+### Settings
+- `GET /api/settings` - Get settings
+- `PUT /api/settings` - Update settings (Admin)
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+## Development
+
+### Running in Development Mode
+
+Frontend:
+```bash
+npm run dev
+```
+
+Backend:
+```bash
+cd backend
+npm run dev
+```
+
+### Building for Production
+
+Frontend:
+```bash
+npm run build
+```
+
+Backend:
+```bash
+cd backend
+npm start
+```
+
+## License
+
+ISC
+
+## Support
+
+For issues and questions, please open an issue on the GitHub repository.

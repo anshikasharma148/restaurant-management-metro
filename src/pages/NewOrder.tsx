@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react"
+import { useState, useCallback, useMemo, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { MenuItem } from "@/components/orders/MenuItem"
 import { OrderSummary } from "@/components/orders/OrderSummary"
-import { mockCategories, mockMenuItems, mockTables } from "@/lib/mockData"
+import { menuAPI, tablesAPI, ordersAPI } from "@/lib/api"
 import { Search, UtensilsCrossed, ShoppingBag, Users, X } from "lucide-react"
 import type { MenuItem as MenuItemType, OrderType, CartItem, Table } from "@/lib/types"
 
@@ -14,14 +14,42 @@ export default function NewOrderPage() {
   const navigate = useNavigate()
   const [orderType, setOrderType] = useState<OrderType>("dine-in")
   const [selectedTable, setSelectedTable] = useState<Table | null>(null)
-  const [selectedCategory, setSelectedCategory] = useState<string>(mockCategories[0].id)
+  const [selectedCategory, setSelectedCategory] = useState<string>("")
   const [searchQuery, setSearchQuery] = useState("")
   const [cart, setCart] = useState<CartItem[]>([])
   const [showTableSelector, setShowTableSelector] = useState(false)
   const [showCart, setShowCart] = useState(false)
+  const [menuItems, setMenuItems] = useState<MenuItemType[]>([])
+  const [categories, setCategories] = useState<any[]>([])
+  const [tables, setTables] = useState<Table[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        const [itemsData, categoriesData, tablesData] = await Promise.all([
+          menuAPI.getItems({ available: true }),
+          menuAPI.getCategories(),
+          tablesAPI.getTables(),
+        ])
+        setMenuItems(itemsData)
+        setCategories(categoriesData)
+        setTables(tablesData)
+        if (categoriesData.length > 0) {
+          setSelectedCategory(categoriesData[0]._id || categoriesData[0].id)
+        }
+      } catch (error: any) {
+        toast.error(error.message || "Failed to load data")
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
 
   const filteredItems = useMemo(() => {
-    let items = mockMenuItems.filter((item) => item.available)
+    let items = menuItems.filter((item) => item.available)
 
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
@@ -30,12 +58,15 @@ export default function NewOrderPage() {
           item.name.toLowerCase().includes(query) ||
           item.description?.toLowerCase().includes(query)
       )
-    } else {
-      items = items.filter((item) => item.category === selectedCategory)
+    } else if (selectedCategory) {
+      items = items.filter((item) => {
+        const categoryId = typeof item.category === 'string' ? item.category : (item.category as any)?._id || (item.category as any)?.id
+        return categoryId === selectedCategory
+      })
     }
 
     return items
-  }, [selectedCategory, searchQuery])
+  }, [selectedCategory, searchQuery, menuItems])
 
   const handleAddItem = useCallback((item: MenuItemType, quantity: number, variant?: string) => {
     const variantPrice = item.variants?.find((v) => v.name === variant)?.priceModifier || 0
@@ -83,7 +114,7 @@ export default function NewOrderPage() {
     setCart((prev) => prev.filter((_, i) => i !== index))
   }, [])
 
-  const handleSubmit = useCallback(() => {
+  const handleSubmit = useCallback(async () => {
     if (orderType === "dine-in" && !selectedTable) {
       toast.error("Please select a table for dine-in orders")
       setShowTableSelector(true)
@@ -95,8 +126,28 @@ export default function NewOrderPage() {
       return
     }
 
-    toast.success("Order placed successfully!")
-    navigate("/kitchen")
+    try {
+      const orderItems = cart.map((item) => ({
+        menuItemId: item.menuItemId,
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+        variant: item.variant,
+      }))
+
+      await ordersAPI.createOrder({
+        type: orderType,
+        items: orderItems,
+        tableNumber: orderType === "dine-in" ? selectedTable?.number : null,
+      })
+
+      toast.success("Order placed successfully!")
+      setCart([])
+      setSelectedTable(null)
+      navigate("/kitchen")
+    } catch (error: any) {
+      toast.error(error.message || "Failed to create order")
+    }
   }, [orderType, selectedTable, cart, navigate])
 
   return (
@@ -149,29 +200,32 @@ export default function NewOrderPage() {
                 )}
               </div>
               <div className="grid grid-cols-5 sm:grid-cols-8 lg:grid-cols-5 gap-2">
-                {mockTables.map((table) => (
-                  <button
-                    key={table.id}
-                    onClick={() => {
-                      if (table.status === "available") {
-                        setSelectedTable(table)
-                        setShowTableSelector(false)
-                      }
-                    }}
-                    disabled={table.status !== "available"}
-                    className={cn(
-                      "p-2 rounded-lg border text-center transition-colors",
-                      table.status !== "available" && "opacity-40 cursor-not-allowed",
-                      selectedTable?.id === table.id
-                        ? "border-primary bg-primary/10 text-primary"
-                        : table.status === "available"
-                        ? "border-border bg-card hover:border-primary/50"
-                        : "border-border bg-muted/50"
-                    )}
-                  >
-                    <span className="text-sm font-bold">{table.number}</span>
-                  </button>
-                ))}
+                {tables.map((table) => {
+                  const tableId = table._id || table.id
+                  return (
+                    <button
+                      key={tableId}
+                      onClick={() => {
+                        if (table.status === "available") {
+                          setSelectedTable(table)
+                          setShowTableSelector(false)
+                        }
+                      }}
+                      disabled={table.status !== "available"}
+                      className={cn(
+                        "p-2 rounded-lg border text-center transition-colors",
+                        table.status !== "available" && "opacity-40 cursor-not-allowed",
+                        selectedTable?._id === tableId || selectedTable?.id === tableId
+                          ? "border-primary bg-primary/10 text-primary"
+                          : table.status === "available"
+                          ? "border-border bg-card hover:border-primary/50"
+                          : "border-border bg-muted/50"
+                      )}
+                    >
+                      <span className="text-sm font-bold">{table.number}</span>
+                    </button>
+                  )
+                })}
               </div>
             </div>
           )}
@@ -200,37 +254,51 @@ export default function NewOrderPage() {
           </div>
 
           {/* Category tabs */}
-          {!searchQuery && (
+          {!searchQuery && !loading && (
             <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4">
-              {mockCategories.map((category) => (
-                <Button
-                  key={category.id}
-                  variant={selectedCategory === category.id ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setSelectedCategory(category.id)}
-                  className="shrink-0"
-                >
-                  <span className="mr-1.5">{category.emoji}</span>
-                  {category.name}
-                </Button>
-              ))}
+              {categories.map((category) => {
+                const categoryId = category._id || category.id
+                return (
+                  <Button
+                    key={categoryId}
+                    variant={selectedCategory === categoryId ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedCategory(categoryId)}
+                    className="shrink-0"
+                  >
+                    <span className="mr-1.5">{category.emoji}</span>
+                    {category.name}
+                  </Button>
+                )
+              })}
             </div>
           )}
         </div>
 
         {/* Menu grid */}
         <div className="flex-1 overflow-y-auto p-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {filteredItems.map((item) => (
-              <MenuItem key={item.id} item={item} onAdd={handleAddItem} />
-            ))}
-          </div>
-
-          {filteredItems.length === 0 && (
+          {loading ? (
             <div className="text-center py-12 text-muted-foreground">
-              <p className="text-base">No items found</p>
-              <p className="text-sm">Try a different search or category</p>
+              <p className="text-base">Loading menu...</p>
             </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {filteredItems.map((item) => {
+                  const itemId = item._id || item.id
+                  return (
+                    <MenuItem key={itemId} item={item} onAdd={handleAddItem} />
+                  )
+                })}
+              </div>
+
+              {filteredItems.length === 0 && (
+                <div className="text-center py-12 text-muted-foreground">
+                  <p className="text-base">No items found</p>
+                  <p className="text-sm">Try a different search or category</p>
+                </div>
+              )}
+            </>
           )}
         </div>
 

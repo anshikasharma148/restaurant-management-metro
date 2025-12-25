@@ -1,6 +1,8 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { StatCard } from "@/components/dashboard/StatCard"
+import { reportsAPI } from "@/lib/api"
+import { toast } from "sonner"
 import {
   Table,
   TableBody,
@@ -18,25 +20,52 @@ import {
   Calendar,
 } from "lucide-react"
 
-const topItems = [
-  { name: "Classic Burger", quantity: 45, revenue: 539.55 },
-  { name: "Pepperoni Pizza", quantity: 38, revenue: 568.62 },
-  { name: "Pasta Carbonara", quantity: 32, revenue: 447.68 },
-  { name: "Caesar Salad", quantity: 28, revenue: 251.72 },
-  { name: "Steak Frites", quantity: 22, revenue: 549.78 },
-]
-
-const categorySales = [
-  { name: "Main Course", orders: 124, revenue: 2156.80 },
-  { name: "Burgers", orders: 89, revenue: 1067.11 },
-  { name: "Pizza", orders: 76, revenue: 1215.24 },
-  { name: "Starters", orders: 65, revenue: 421.35 },
-  { name: "Beverages", orders: 142, revenue: 497.58 },
-  { name: "Desserts", orders: 48, revenue: 335.52 },
-]
-
 export default function ReportsPage() {
   const [dateRange, setDateRange] = useState<"today" | "week" | "month">("today")
+  const [salesSummary, setSalesSummary] = useState<any>(null)
+  const [topItems, setTopItems] = useState<any[]>([])
+  const [categorySales, setCategorySales] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchReports = async () => {
+      try {
+        setLoading(true)
+        const today = new Date()
+        let startDate: string | undefined
+        let endDate: string | undefined
+
+        if (dateRange === "today") {
+          startDate = today.toISOString().split("T")[0]
+          endDate = today.toISOString().split("T")[0]
+        } else if (dateRange === "week") {
+          const weekAgo = new Date(today)
+          weekAgo.setDate(weekAgo.getDate() - 7)
+          startDate = weekAgo.toISOString().split("T")[0]
+          endDate = today.toISOString().split("T")[0]
+        } else if (dateRange === "month") {
+          const monthAgo = new Date(today)
+          monthAgo.setMonth(monthAgo.getMonth() - 1)
+          startDate = monthAgo.toISOString().split("T")[0]
+          endDate = today.toISOString().split("T")[0]
+        }
+
+        const [sales, items, categories] = await Promise.all([
+          reportsAPI.getSalesSummary({ startDate, endDate }),
+          reportsAPI.getTopItems({ startDate, endDate, limit: 5 }),
+          reportsAPI.getCategorySales({ startDate, endDate }),
+        ])
+        setSalesSummary(sales)
+        setTopItems(items)
+        setCategorySales(categories)
+      } catch (error: any) {
+        toast.error(error.message || "Failed to load reports")
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchReports()
+  }, [dateRange])
 
   return (
     <div className="min-h-screen p-4 lg:p-6">
@@ -79,34 +108,34 @@ export default function ReportsPage() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6">
-          <StatCard
-            title="Total Sales"
-            value="$5,693"
-            subtitle="544 orders"
-            icon={DollarSign}
-            trend={{ value: 12.5, isPositive: true }}
-          />
-          <StatCard
-            title="Avg Order"
-            value="$10.47"
-            icon={TrendingUp}
-            trend={{ value: 3.2, isPositive: true }}
-          />
-          <StatCard
-            title="Orders"
-            value="544"
-            subtitle="432 dine-in"
-            icon={ShoppingCart}
-            trend={{ value: 8.4, isPositive: true }}
-          />
-          <StatCard
-            title="Customers"
-            value="387"
-            icon={Users}
-            trend={{ value: 15.2, isPositive: true }}
-          />
-        </div>
+        {loading ? (
+          <div className="text-center py-12 mb-6">Loading reports...</div>
+        ) : (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6">
+            <StatCard
+              title="Total Sales"
+              value={`$${salesSummary?.totalSales?.toFixed(2) || "0.00"}`}
+              subtitle={`${salesSummary?.totalOrders || 0} orders`}
+              icon={DollarSign}
+            />
+            <StatCard
+              title="Avg Order"
+              value={`$${salesSummary?.averageOrderValue?.toFixed(2) || "0.00"}`}
+              icon={TrendingUp}
+            />
+            <StatCard
+              title="Orders"
+              value={salesSummary?.totalOrders || 0}
+              icon={ShoppingCart}
+            />
+            <StatCard
+              title="Top Items"
+              value={topItems.length}
+              subtitle="Tracked"
+              icon={Users}
+            />
+          </div>
+        )}
 
         {/* Tables */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
@@ -122,22 +151,36 @@ export default function ReportsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {topItems.map((item, index) => (
-                  <TableRow key={item.name}>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
-                          {index + 1}
-                        </span>
-                        <span className="text-sm">{item.name}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right text-sm">{item.quantity}</TableCell>
-                    <TableCell className="text-right text-sm font-semibold text-primary">
-                      ${item.revenue.toFixed(2)}
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                      Loading...
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : topItems.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                      No data available
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  topItems.map((item, index) => (
+                    <TableRow key={item.name}>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
+                            {index + 1}
+                          </span>
+                          <span className="text-sm">{item.name}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right text-sm">{item.quantity}</TableCell>
+                      <TableCell className="text-right text-sm font-semibold text-primary">
+                        ${item.revenue.toFixed(2)}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>
@@ -154,15 +197,29 @@ export default function ReportsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {categorySales.map((category) => (
-                  <TableRow key={category.name}>
-                    <TableCell className="font-medium text-sm">{category.name}</TableCell>
-                    <TableCell className="text-right text-sm">{category.orders}</TableCell>
-                    <TableCell className="text-right text-sm font-semibold text-primary">
-                      ${category.revenue.toFixed(2)}
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                      Loading...
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : categorySales.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                      No data available
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  categorySales.map((category) => (
+                    <TableRow key={category.name}>
+                      <TableCell className="font-medium text-sm">{category.name}</TableCell>
+                      <TableCell className="text-right text-sm">{category.orders}</TableCell>
+                      <TableCell className="text-right text-sm font-semibold text-primary">
+                        ${category.revenue.toFixed(2)}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>
